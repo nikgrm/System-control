@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System-control | Registro de Ingresos</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Librerías para Excel y PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Fuentes e Iconos -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81' },
+                        accent: { 500: '#8b5cf6', 600: '#7c3aed' },
+                        success: { 500: '#10b981', 600: '#059669' },
+                        warning: { 500: '#f59e0b', 600: '#d97706' },
+                        danger: { 500: '#f43f5e', 600: '#e11d48' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8fafc; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(0.4); }
+        .animate-spin-slow { animation: spin 3s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-900 min-h-screen flex flex-col font-sans">
+
+    <!-- Navbar -->
+    <nav class="bg-gradient-to-r from-brand-900 via-brand-700 to-accent-600 shadow-xl sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/20 backdrop-blur-md text-white p-2.5 rounded-xl shadow-inner border border-white/20">
+                        <i class="fa-solid fa-bolt-lightning text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-extrabold text-white tracking-tight">System-control</h1>
+                        <p class="text-[10px] text-brand-100 font-bold uppercase tracking-widest hidden sm:block">Gestión de Inventario V5.2</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="document.getElementById('fileInput').click()" class="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all border border-white/10 flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> <span class="hidden md:inline">IMPORTAR</span>
+                    </button>
+                    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv, .txt" multiple class="hidden" onchange="processFiles(event)">
+
+                    <button onclick="app.openModal('reportsModal')" class="bg-success-500 hover:bg-success-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> <span class="hidden md:inline">REPORTES</span>
+                    </button>
+                    
+                    <button onclick="app.requestAuth(app.clearAllData)" class="bg-white/10 hover:bg-danger-500 text-white p-2.5 rounded-xl transition-all group" title="Reiniciar Sistema">
+                        <i class="fa-solid fa-trash-can group-hover:scale-110"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Formulario -->
+            <div class="lg:col-span-4">
+                <div class="glass-card rounded-3xl shadow-2xl border border-slate-200 p-8 sticky top-24">
+                    <h2 class="text-xl font-extrabold text-slate-800 mb-6 flex items-center gap-3">
+                        <span class="w-2 h-8 bg-brand-600 rounded-full"></span>
+                        Nuevo Registro
+                    </h2>
+
+                    <form id="inventoryForm" onsubmit="event.preventDefault();" class="space-y-5">
+                        <div class="grid grid-cols-1 gap-3">
+                            <label class="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-accent-500 transition-all group has-[:checked]:bg-accent-50 has-[:checked]:border-accent-500">
+                                <input type="checkbox" id="isExchange" class="w-5 h-5 text-accent-600 border-slate-300 rounded-full" onchange="app.toggleCheckboxes('isExchange')">
+                                <span class="text-xs font-extrabold text-slate-600 group-has-[:checked]:text-accent-700 uppercase tracking-tighter flex items-center gap-2">
+                                    <i class="fa-solid fa-arrows-rotate"></i> ES UN CAMBIO
+                                </span>
+                            </label>
+
+                            <label class="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-warning-500 transition-all group has-[:checked]:bg-warning-50 has-[:checked]:border-warning-500">
+                                <input type="checkbox" id="isPriceUpdate" class="w-5 h-5 text-warning-600 border-slate-300 rounded-full" onchange="app.toggleCheckboxes('isPriceUpdate')">
+                                <span class="text-xs font-extrabold text-slate-600 group-has-[:checked]:text-warning-700 uppercase tracking-tighter flex items-center gap-2">
+                                    <i class="fa-solid fa-tag"></i> PRECIO ACTUALIZADO
+                                </span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Referencia</label>
+                            <input type="text" id="reference" onkeyup="app.runDetection()"
+                                class="block w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none placeholder-slate-400 uppercase font-bold text-lg transition-all" 
+                                placeholder="EJ. 18O... RF..." autocomplete="off">
+                            <p class="text-[10px] text-warning-600 mt-2 pl-1 font-bold italic hidden" id="autoDetectLabel">
+                                <i class="fa-solid fa-wand-magic-sparkles animate-pulse"></i> ¡Referencia reconocida!
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Categoría</label>
+                            <div class="flex items-center bg-slate-50 border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-brand-500 transition-all">
+                                <select id="categoryInput" class="block w-full px-4 py-3.5 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 cursor-pointer"></select>
+                                
+                                <button type="button" onclick="app.openModal('addCategoryModal')" class="px-3 h-full text-slate-400 hover:text-brand-600 hover:bg-brand-100 transition-colors">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                                <button type="button" onclick="app.openManageCategories()" class="px-3 h-full text-slate-400 hover:text-danger-500 hover:bg-danger-50 transition-colors">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4">
+                            <div class="w-1/3">
+                                <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Cant.</label>
+                                <input type="number" id="quantity" min="1"
+                                    class="block w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-brand-500 outline-none font-black text-center text-xl" 
+                                    placeholder="0">
+                            </div>
+                            <div class="w-2/3 flex items-end">
+                                <button onclick="app.addEntry()" class="w-full h-[56px] bg-brand-600 hover:bg-brand-700 text-white font-black py-3 rounded-2xl shadow-xl shadow-brand-500/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-check-double text-lg"></i> REGISTRAR
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Resumen -->
+                    <div class="mt-8">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center" id="summaryTitle">Resumen de Hoy</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 bg-gradient-to-br from-brand-50 to-white rounded-2xl border border-brand-100">
+                                <p class="text-[9px] font-black text-brand-600 uppercase tracking-widest mb-1">Refs.</p>
+                                <p id="todayItemsCount" class="text-2xl font-black text-slate-900 leading-none">0</p>
+                            </div>
+                            <div class="p-4 bg-gradient-to-br from-success-50 to-white rounded-2xl border border-success-100">
+                                <p class="text-[9px] font-black text-success-600 uppercase tracking-widest mb-1">Unidades</p>
+                                <p id="todayUnitsCount" class="text-2xl font-black text-slate-900 leading-none">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Datos -->
+            <div class="lg:col-span-8 space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-brand-100 p-2.5 rounded-xl text-brand-600">
+                            <i class="fa-solid fa-calendar-day text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">Historial de fecha</h2>
+                                <span class="text-[10px] text-brand-500 font-bold bg-brand-50 px-2 py-0.5 rounded-full" id="currentDateDisplay"></span>
+                            </div>
+                            <input type="date" id="viewDateInput" onchange="app.handleDateChange()" 
+                                class="text-xl font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer">
+                        </div>
+                    </div>
+                    
+                    <div class="relative w-full md:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" onkeyup="app.renderTable()" 
+                            class="block w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all shadow-sm" 
+                            placeholder="Buscar referencia...">
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden min-h-[500px] flex flex-col">
+                    <div class="overflow-x-auto flex-grow custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-50/80 border-b border-slate-100 text-[10px] uppercase text-slate-500 font-black tracking-widest">
+                                    <th class="px-6 py-5">Hora</th>
+                                    <th class="px-6 py-5">Referencia</th>
+                                    <th class="px-6 py-5 text-center">Categoría</th>
+                                    <th class="px-6 py-5 text-right">Cant.</th>
+                                    <th class="px-6 py-5 text-center">Estado</th>
+                                    <th class="px-6 py-5 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody" class="divide-y divide-slate-50"></tbody>
+                        </table>
+                    </div>
+                    <div id="emptyState" class="hidden flex-grow flex flex-col items-center justify-center py-20 text-slate-400">
+                        <div class="bg-slate-100 p-6 rounded-full mb-4">
+                            <i class="fa-solid fa-folder-open text-4xl text-slate-300"></i>
+                        </div>
+                        <p class="font-bold">Sin registros para esta fecha</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 text-center bg-brand-900 text-brand-300">
+        <div class="flex flex-col items-center gap-2">
+            <span class="text-xs font-black tracking-[0.3em] text-white">SYSTEM-CONTROL PREMIUM</span>
+            <span class="text-[10px] opacity-50 font-mono italic">NG TECHNOLOGY 2026</span>
+        </div>
+    </footer>
+
+    <!-- MODAL EDICIÓN -->
+    <div id="editModal" class="fixed inset-0 z-50 hidden bg-brand-900/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 relative border border-slate-100">
+            <button onclick="app.closeModal('editModal')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-circle-xmark text-2xl"></i>
+            </button>
+            <h3 class="text-2xl font-black text-slate-800 mb-6">Editar Registro</h3>
+            <div class="space-y-5">
+                <input type="hidden" id="editId">
+                <input type="text" id="editRef" class="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold uppercase outline-none">
+                <select id="editCategory" class="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold outline-none"></select>
+                <input type="number" id="editQty" class="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-xl outline-none">
+                <button onclick="app.performEdit()" class="w-full bg-brand-600 text-white font-black py-4 rounded-2xl shadow-xl">GUARDAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL REPORTES -->
+    <div id="reportsModal" class="fixed inset-0 z-50 hidden bg-brand-900/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 relative">
+            <button onclick="app.closeModal('reportsModal')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-2xl"></i></button>
+            <h3 class="text-2xl font-black text-slate-800 mb-8">Centro de Reportes</h3>
+            <div class="space-y-6">
+                <div class="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4">
+                    <div class="flex-grow">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Por Día</label>
+                        <input type="date" id="reportDateInput" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                    </div>
+                    <button onclick="app.downloadDaily()" class="bg-brand-600 text-white p-4 rounded-2xl"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4">
+                    <div class="flex-grow">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Por Mes</label>
+                        <input type="month" id="reportMonthInput" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold">
+                    </div>
+                    <button onclick="app.downloadMonthly()" class="bg-accent-600 text-white p-4 rounded-2xl"><i class="fa-solid fa-download"></i></button>
+                </div>
+                <button onclick="app.downloadAudit()" class="w-full bg-warning-500 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-shield-halved"></i> AUDITORÍA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CATEGORÍA -->
+    <div id="addCategoryModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center">
+            <h3 class="text-xl font-black text-slate-800 mb-6">Nueva Categoría</h3>
+            <input type="text" id="newCategoryName" class="block w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-center font-bold uppercase mb-6" placeholder="EJ. JOYERÍA FINA">
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="app.closeModal('addCategoryModal')" class="bg-slate-100 text-slate-500 font-bold py-3 rounded-xl">SALIR</button>
+                <button onclick="app.saveNewCategory()" class="bg-brand-600 text-white font-black py-3 rounded-xl">GUARDAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GESTIONAR CATEGORÍAS -->
+    <div id="manageCategoriesModal" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 relative max-h-[90vh] flex flex-col">
+            <button onclick="app.closeModal('manageCategoriesModal')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-circle-xmark text-2xl"></i></button>
+            <h3 class="text-2xl font-black text-slate-800 mb-6">Gestionar Categorías</h3>
+            <div id="manageCategoriesList" class="flex-grow space-y-3 overflow-y-auto pr-2 custom-scrollbar"></div>
+            <button onclick="app.closeModal('manageCategoriesModal')" class="w-full mt-4 bg-slate-900 text-white font-black py-4 rounded-2xl">CERRAR</button>
+        </div>
+    </div>
+
+    <!-- MODAL AUTORIZACIÓN -->
+    <div id="authModal" class="fixed inset-0 z-[60] hidden bg-brand-900/80 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-xs p-10 text-center border-t-8 border-brand-600">
+            <h3 class="text-xl font-black text-slate-800 mb-6">Autorización</h3>
+            <input type="password" id="authInput" class="block w-full px-5 py-5 bg-slate-50 border-2 border-slate-200 rounded-3xl text-center text-3xl font-black mb-8 outline-none tracking-widest" placeholder="••••••">
+            <button onclick="app.confirmAuth()" class="w-full bg-brand-600 text-white font-black py-4 rounded-2xl shadow-lg mb-3">ACCEDER</button>
+            <button onclick="app.cancelAuth()" class="text-slate-400 font-bold text-xs uppercase">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-8 right-8 transform translate-y-32 opacity-0 transition-all duration-500 z-[70] max-w-xs w-full bg-white shadow-2xl rounded-[1.5rem] border-l-[10px] p-5 flex items-center gap-4 pointer-events-none">
+        <div id="toastIcon" class="w-12 h-12 flex items-center justify-center rounded-2xl shadow-inner text-xl"></div>
+        <div>
+            <h4 id="toastTitle" class="font-black text-sm"></h4>
+            <p id="toastMessage" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"></p>
+        </div>
+    </div>
+
+    <!-- Overlay de Carga -->
+    <div id="loadingOverlay" class="fixed inset-0 z-[80] hidden bg-brand-900/90 backdrop-blur-xl flex flex-col items-center justify-center text-white">
+        <i class="fa-solid fa-database text-4xl animate-pulse"></i>
+        <h3 class="text-xl font-black mt-8 uppercase">Procesando...</h3>
+    </div>
+
+    <script>
+        // Helper para obtener fecha local YYYY-MM-DD
+        const getLocalDate = (dateObj = new Date()) => {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const app = {
+            HISTORY: [],
+            AUDIT: [], 
+            CATEGORIES: [],
+            REF_MAP: {}, 
+            STORAGE_KEY: 'inventory_history_v5_pro',
+            AUDIT_KEY: 'inventory_audit_v5_pro',
+            CATS_KEY: 'inventory_categories_v5_pro',
+            MAP_KEY: 'inventory_ref_map_v5_pro', 
+            ADMIN_KEY: '791039',
+            pendingCallback: null,
+
+            DEFAULT_LIST: [
+                { name: "ORO", group: "ORO" },
+                { name: "PLATERIA", group: "Joyería" },
+                { name: "MALLORCA", group: "Joyería" },
+                { name: "PRECOLOMBINO", group: "Joyería" },
+                { name: "LAMINADO", group: "Joyería" },
+                { name: "PLATA ESMERALDA", group: "Joyería" },
+                { name: "ACERO", group: "Joyería" },
+                { name: "COVERGOLD", group: "Joyería" },
+                { name: "RELOJ KAIROS", group: "Relojes" },
+                { name: "CAT", group: "Relojes" },
+                { name: "TOMMY HILFIGER", group: "Relojes" },
+                { name: "NAUTICA", group: "Relojes" },
+                { name: "SWATCH", group: "Relojes" },
+                { name: "TISSOT", group: "Relojes" },
+                { name: "BULOVA", group: "Relojes" },
+                { name: "G-FORCE", group: "Relojes" },
+                { name: "YESS", group: "Relojes" },
+                { name: "STRIKE", group: "Relojes" },
+                { name: "NAVIFORCE", group: "Relojes" },
+                { name: "REPLICA", group: "Relojes" },
+                { name: "GUESS", group: "Relojes" },
+                { name: "ORIENT", group: "Relojes" },
+                { name: "DMARIO", group: "Relojes" },
+                { name: "Q&Q", group: "Relojes" },
+                { name: "CASIO", group: "Relojes" },
+                { name: "RELOJ FOSSIL", group: "Relojes" },
+                { name: "CAJA RELOJ", group: "Relojes" },
+                { name: "PULSO CUERO", group: "Pulsos" },
+                { name: "PULSO METALICO", group: "Pulsos" },
+                { name: "PULSO METALICO DMARIO", group: "Pulsos" },
+                { name: "PULSO CUERO DMARIO", group: "Pulsos" },
+                { name: "BATERIAS", group: "Otros" },
+                { name: "GENERAL", group: "Otros" }
+            ],
+
+            init: function() {
+                this.loadData();
+                this.setDefaults();
+                this.renderCategories();
+                this.renderTable();
+                this.updateStats();
+            },
+
+            loadData: function() {
+                try {
+                    this.HISTORY = JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || [];
+                    this.AUDIT = JSON.parse(localStorage.getItem(this.AUDIT_KEY)) || [];
+                    this.REF_MAP = JSON.parse(localStorage.getItem(this.MAP_KEY)) || {};
+                    const savedCats = localStorage.getItem(this.CATS_KEY);
+                    if (savedCats) {
+                        this.CATEGORIES = JSON.parse(savedCats);
+                    } else {
+                        this.CATEGORIES = [...this.DEFAULT_LIST];
+                        this.saveCategories();
+                    }
+                } catch (e) {
+                    this.CATEGORIES = [...this.DEFAULT_LIST];
+                    this.REF_MAP = {};
+                }
+            },
+
+            saveData: function() { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.HISTORY)); },
+            saveCategories: function() { localStorage.setItem(this.CATS_KEY, JSON.stringify(this.CATEGORIES)); },
+            saveRefMap: function() { localStorage.setItem(this.MAP_KEY, JSON.stringify(this.REF_MAP)); },
+
+            logAudit: function(action, detailsObj) {
+                this.AUDIT.unshift({ date: new Date().toISOString(), action, details: detailsObj });
+                localStorage.setItem(this.AUDIT_KEY, JSON.stringify(this.AUDIT));
+            },
+
+            renderCategories: function() {
+                const groups = {};
+                this.CATEGORIES.forEach(c => {
+                    if (!groups[c.group]) groups[c.group] = [];
+                    groups[c.group].push(c.name);
+                });
+
+                let html = `<option value="GENERAL">-- Categoría --</option>`;
+                const groupOrder = ["ORO", "Joyería", "Relojes", "Pulsos", "Otros", "Personalizadas"];
+                groupOrder.forEach(group => {
+                    if (groups[group]) {
+                        html += `<optgroup label="${group.toUpperCase()}">`;
+                        groups[group].sort().forEach(name => {
+                            html += `<option value="${name}">${name}</option>`;
+                        });
+                        html += `</optgroup>`;
+                    }
+                });
+
+                const input = document.getElementById('categoryInput');
+                const editInput = document.getElementById('editCategory');
+                if (input) input.innerHTML = html;
+                if (editInput) editInput.innerHTML = html;
+            },
+
+            handleDateChange: function() {
+                this.renderTable();
+                this.updateStats();
+                const selectedDate = document.getElementById('viewDateInput')?.value;
+                const today = getLocalDate();
+                const summaryTitle = document.getElementById('summaryTitle');
+                if (summaryTitle && selectedDate) {
+                    summaryTitle.textContent = (selectedDate === today) ? "Resumen de Hoy" : `Resumen del ${selectedDate.split('-').reverse().join('/')}`;
+                }
+            },
+
+            renderTable: function() {
+                const tbody = document.getElementById('logsTableBody');
+                if (!tbody) return;
+                
+                const search = document.getElementById('searchInput')?.value.toUpperCase() || "";
+                const filterDate = document.getElementById('viewDateInput')?.value;
+                tbody.innerHTML = '';
+
+                // Filtro comparando solo la parte de la fecha local
+                const filtered = this.HISTORY.filter(x => {
+                    const localEntryDate = getLocalDate(new Date(x.date));
+                    return localEntryDate === filterDate && x.ref.includes(search);
+                });
+
+                const emptyState = document.getElementById('emptyState');
+                if (filtered.length === 0) {
+                    if (emptyState) emptyState.classList.remove('hidden');
+                } else {
+                    if (emptyState) emptyState.classList.add('hidden');
+                    filtered.forEach(log => {
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-brand-50/50 border-b border-slate-50 transition-colors";
+                        
+                        let badge = 'bg-slate-100 text-slate-600';
+                        if (log.reason === 'CAMBIO') badge = 'bg-accent-100 text-accent-700';
+                        if (log.reason === 'ACTUALIZACIÓN PRECIO') badge = 'bg-warning-100 text-warning-700';
+                        if (log.reason === 'EXCEL') badge = 'bg-brand-100 text-brand-700';
+                        
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 text-[11px] text-slate-400 font-black">${new Date(log.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="px-6 py-4 font-extrabold text-slate-800 text-sm tracking-tight">${log.ref}</td>
+                            <td class="px-6 py-4 text-center"><span class="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase">${log.category}</span></td>
+                            <td class="px-6 py-4 text-right font-mono font-black text-success-600 text-base">+${log.qty}</td>
+                            <td class="px-6 py-4 text-center"><span class="px-3 py-1 text-[9px] rounded-full font-black ${badge}">${log.reason}</span></td>
+                            <td class="px-6 py-4 text-right whitespace-nowrap space-x-1">
+                                <button onclick="app.prepareEdit('${log.id}')" class="text-brand-500 hover:bg-brand-50 w-9 h-9 rounded-xl transition-all"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="app.requestAuth(() => app.deleteEntry('${log.id}'))" class="text-slate-300 hover:text-danger-500 hover:bg-danger-50 w-9 h-9 rounded-xl transition-all"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            },
+
+            updateStats: function() {
+                const filterDate = document.getElementById('viewDateInput')?.value;
+                if (!filterDate) return;
+                
+                const dailyEntries = this.HISTORY.filter(x => getLocalDate(new Date(x.date)) === filterDate);
+                const itemCount = document.getElementById('todayItemsCount');
+                const unitsCount = document.getElementById('todayUnitsCount');
+                
+                if (itemCount) itemCount.textContent = new Set(dailyEntries.map(x => x.ref)).size;
+                if (unitsCount) unitsCount.textContent = dailyEntries.reduce((s, x) => s + x.qty, 0);
+            },
+
+            openManageCategories: function() {
+                const list = document.getElementById('manageCategoriesList');
+                if (!list) return;
+                list.innerHTML = '';
+                const sorted = [...this.CATEGORIES].sort((a, b) => a.name.localeCompare(b.name));
+                sorted.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all';
+                    div.innerHTML = `
+                        <button onclick="app.requestAuth(() => app.deleteCategory('${c.name}'))" class="w-10 h-10 bg-danger-50 text-danger-500 hover:bg-danger-500 hover:text-white rounded-xl transition-all flex items-center justify-center">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                        <div>
+                            <p class="text-xs font-black text-slate-800">${c.name}</p>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${c.group}</p>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+                this.openModal('manageCategoriesModal');
+            },
+
+            deleteCategory: function(name) {
+                const index = this.CATEGORIES.findIndex(c => c.name === name);
+                if (index > -1) {
+                    this.CATEGORIES.splice(index, 1);
+                    this.saveCategories(); this.renderCategories();
+                    this.openManageCategories();
+                    this.toast('Borrado', 'Categoría eliminada', 'neutral');
+                }
+            },
+
+            saveNewCategory: function() {
+                const input = document.getElementById('newCategoryName');
+                const val = input?.value.trim().toUpperCase();
+                if (!val) return;
+                if (this.CATEGORIES.find(c => c.name === val)) return this.toast('Duplicado', 'Ya existe', 'error');
+                
+                this.CATEGORIES.push({ name: val, group: 'Personalizadas' });
+                this.saveCategories(); this.renderCategories();
+                this.closeModal('addCategoryModal');
+                if (input) input.value = '';
+                
+                const catInput = document.getElementById('categoryInput');
+                if (catInput) catInput.value = val;
+                
+                this.toast('Guardado', 'Nueva categoría activa', 'success');
+            },
+
+            addEntry: function() {
+                const refInput = document.getElementById('reference');
+                const catInput = document.getElementById('categoryInput');
+                const qtyInput = document.getElementById('quantity');
+                const isEx = document.getElementById('isExchange'); 
+                const isPr = document.getElementById('isPriceUpdate');
+                
+                const ref = refInput?.value.trim().toUpperCase();
+                const qty = parseInt(qtyInput?.value);
+                const category = catInput?.value;
+
+                if (!ref || isNaN(qty) || qty <= 0) return this.toast('Incompleto', 'Revise los campos', 'error');
+
+                this.REF_MAP[ref] = category;
+                this.saveRefMap();
+
+                let reason = 'INGRESO';
+                if (isEx?.checked) reason = 'CAMBIO';
+                else if (isPr?.checked) reason = 'ACTUALIZACIÓN PRECIO';
+                
+                const now = new Date();
+                this.HISTORY.unshift({ id: 'ID_' + now.getTime(), ref, category, qty, date: now.toISOString(), reason });
+                this.saveData(); 
+                
+                if (document.getElementById('viewDateInput')?.value === getLocalDate(now)) {
+                    this.renderTable(); this.updateStats();
+                }
+
+                if (refInput) refInput.value = '';
+                if (qtyInput) qtyInput.value = '';
+                if (isEx) isEx.checked = false;
+                if (isPr) isPr.checked = false;
+                if (refInput) refInput.focus();
+                
+                this.toast('Registrado', 'Operación exitosa', 'success');
+            },
+
+            deleteEntry: function(id) {
+                const idx = this.HISTORY.findIndex(x => x.id === id);
+                if (idx > -1) {
+                    const item = this.HISTORY[idx];
+                    this.logAudit('ELIMINAR', { before: `${item.ref} (${item.qty})`, after: 'BORRADO' });
+                    this.HISTORY.splice(idx, 1);
+                    this.saveData(); this.renderTable(); this.updateStats();
+                    this.toast('Eliminado', 'Registro removido', 'neutral');
+                }
+            },
+
+            prepareEdit: function(id) {
+                this.requestAuth(() => {
+                    const entry = this.HISTORY.find(x => x.id === id);
+                    if (entry) {
+                        const editId = document.getElementById('editId');
+                        const editRef = document.getElementById('editRef');
+                        const editCat = document.getElementById('editCategory');
+                        const editQty = document.getElementById('editQty');
+                        
+                        if (editId) editId.value = entry.id;
+                        if (editRef) editRef.value = entry.ref;
+                        if (editCat) editCat.value = entry.category;
+                        if (editQty) editQty.value = entry.qty;
+                        
+                        this.openModal('editModal');
+                    }
+                });
+            },
+
+            performEdit: function() {
+                const id = document.getElementById('editId')?.value;
+                const ref = document.getElementById('editRef')?.value.trim().toUpperCase();
+                const qty = parseInt(document.getElementById('editQty')?.value);
+                const cat = document.getElementById('editCategory')?.value;
+                
+                if (!id) return;
+                
+                const idx = this.HISTORY.findIndex(x => x.id === id);
+                if (idx > -1) {
+                    const old = this.HISTORY[idx];
+                    this.logAudit('EDITAR', { before: `${old.ref} - ${old.qty}`, after: `${ref} - ${qty}` });
+                    this.HISTORY[idx].ref = ref; this.HISTORY[idx].qty = qty; this.HISTORY[idx].category = cat;
+                    this.saveData(); this.renderTable(); this.updateStats();
+                    this.closeModal('editModal');
+                    this.toast('Actualizado', 'Datos modificados', 'success');
+                }
+            },
+
+            toggleCheckboxes: function(id) {
+                const current = document.getElementById(id);
+                if (current && current.checked) {
+                    if (id === 'isExchange') {
+                        const other = document.getElementById('isPriceUpdate');
+                        if (other) other.checked = false;
+                    } else {
+                        const other = document.getElementById('isExchange');
+                        if (other) other.checked = false;
+                    }
+                }
+            },
+
+            runDetection: function() {
+                const ref = document.getElementById('reference')?.value.toUpperCase();
+                const sel = document.getElementById('categoryInput');
+                if (!ref || !sel) return;
+                
+                let det = null;
+                if (this.REF_MAP[ref]) {
+                    det = this.REF_MAP[ref];
+                } else {
+                    if (/^(1|2|3|4|5|6|7|9|13|14)O/.test(ref)) det = 'ORO';
+                    else if (ref.startsWith('RK')) det = 'RELOJ KAIROS';
+                    else if (ref.startsWith('PMD')) det = 'PULSO METALICO DMARIO';
+                    else if (ref.startsWith('PCD')) det = 'PULSO CUERO DMARIO';
+                    else if (ref.startsWith('PPD')) det = 'PULSO PLASTICO DMARIO';
+                    else if (ref.startsWith('CR')) det = 'CAJA RELOJ';
+                    else if (ref.startsWith('CJ')) det = 'ESTUCHE JOYERO';
+                    else if (/^\d+PR/.test(ref)) det = 'PRECOLOMBINO';
+                    else if (/^(1|2|3|4|5|6|7|8|9|10|13|14)P/.test(ref)) det = 'PLATERIA';
+                    else if (/^(1|2|3|4|5|6|7|8|9|10|13|14)M/.test(ref)) det = 'MALLORCA';
+                    else if (/^\d+F/.test(ref)) det = 'ACERO';
+                    else if (/^\d+C/.test(ref)) det = 'COVERGOLD';
+                    else if (/^\d+L/.test(ref)) det = 'LAMINADO';
+                    else if (/^\d+E/.test(ref)) det = 'PLATA ESMERALDA';
+                    else if (ref.startsWith('RF')) det = 'RELOJ FOSSIL';
+                    else if (ref.startsWith('RCAT')) det = 'CAT'; 
+                    else if (ref.startsWith('RTG')) det = 'TOMMY HILFIGER';
+                    else if (ref.startsWith('RSW')) det = 'SWATCH'; 
+                    else if (ref.startsWith('RNT')) det = 'NAUTICA';
+                    else if (ref.startsWith('RT')) det = 'TISSOT'; 
+                    else if (ref.startsWith('RBV')) det = 'BULOVA';
+                    else if (ref.startsWith('RGF')) det = 'G-FORCE'; 
+                    else if (ref.startsWith('RY')) det = 'YESS';
+                    else if (ref.startsWith('RST')) det = 'STRIKE'; 
+                    else if (ref.startsWith('RN')) det = 'NAVIFORCE';
+                    else if (ref.startsWith('RR')) det = 'REPLICA'; 
+                    else if (ref.startsWith('RG')) det = 'GUESS';
+                    else if (ref.startsWith('RO')) det = 'ORIENT'; 
+                    else if (ref.startsWith('RD')) det = 'DMARIO';
+                    else if (ref.startsWith('RQ')) det = 'Q&Q'; 
+                    else if (ref.startsWith('RC')) det = 'CASIO';
+                    else if (['MURATA', 'RENATA', 'ENERGIZER'].some(w => ref.includes(w))) det = 'BATERIAS';
+                    else if (ref.startsWith('PL')) det = 'PULSO PIEL'; 
+                    else if (ref.startsWith('PC')) det = 'PULSO CUERO';
+                    else if (ref.startsWith('PM')) det = 'PULSO METALICO'; 
+                    else if (ref.startsWith('PP')) det = 'PULSO PLASTICO';
+                }
+
+                if (det && sel.value !== det && this.CATEGORIES.find(c => c.name === det)) {
+                    sel.value = det;
+                    const label = document.getElementById('autoDetectLabel');
+                    if (label) {
+                        label.classList.remove('hidden');
+                        setTimeout(() => label.classList.add('hidden'), 2000);
+                    }
+                }
+            },
+
+            requestAuth: function(cb) {
+                this.pendingCallback = cb;
+                const input = document.getElementById('authInput');
+                if (input) input.value = '';
+                this.openModal('authModal');
+                setTimeout(() => input?.focus(), 100);
+            },
+
+            confirmAuth: function() {
+                const input = document.getElementById('authInput');
+                if (input && input.value === this.ADMIN_KEY) {
+                    this.closeModal('authModal');
+                    if (this.pendingCallback) this.pendingCallback();
+                } else this.toast('Clave Inválida', 'Acceso denegado', 'error');
+                this.pendingCallback = null;
+            },
+
+            cancelAuth: function() { this.closeModal('authModal'); this.pendingCallback = null; },
+
+            clearAllData: function() {
+                if (confirm('¿ELIMINAR TODO EL HISTORIAL Y AUDITORÍA?')) {
+                    this.HISTORY = []; this.AUDIT = [];
+                    this.saveData(); localStorage.setItem(this.AUDIT_KEY, '[]');
+                    this.renderTable(); this.updateStats();
+                    this.toast('Reiniciado', 'Memoria limpia', 'neutral');
+                }
+            },
+
+            setDefaults: function() {
+                const localNow = getLocalDate();
+                const reportDate = document.getElementById('reportDateInput');
+                const reportMonth = document.getElementById('reportMonthInput');
+                const viewDate = document.getElementById('viewDateInput');
+                const display = document.getElementById('currentDateDisplay');
+                
+                if (reportDate) reportDate.value = localNow;
+                if (reportMonth) reportMonth.value = localNow.slice(0, 7);
+                if (viewDate) viewDate.value = localNow;
+                
+                if (display) {
+                    display.textContent = new Date().toLocaleDateString('es-ES', { 
+                        weekday:'long', year:'numeric', month:'long', day:'numeric'
+                    });
+                }
+            },
+
+            openModal: function(id) { document.getElementById(id)?.classList.remove('hidden'); },
+            closeModal: function(id) { document.getElementById(id)?.classList.add('hidden'); },
+            
+            toast: function(title, msg, type) {
+                const t = document.getElementById('toast');
+                const ti = document.getElementById('toastIcon');
+                if (!t || !ti) return;
+                
+                const colors = {
+                    success: { border: 'border-success-500', bg: 'bg-success-50', text: 'text-success-600', icon: 'fa-check-double' },
+                    error: { border: 'border-danger-500', bg: 'bg-danger-50', text: 'text-danger-600', icon: 'fa-triangle-exclamation' },
+                    neutral: { border: 'border-brand-500', bg: 'bg-brand-50', text: 'text-brand-600', icon: 'fa-circle-info' }
+                };
+                const c = colors[type] || colors.neutral;
+                
+                t.className = `fixed bottom-8 right-8 z-[70] bg-white shadow-2xl rounded-[1.5rem] border-l-[10px] p-5 flex items-center gap-4 transition-all duration-500 ${c.border}`;
+                ti.className = `w-12 h-12 flex items-center justify-center rounded-2xl shadow-inner text-xl ${c.bg} ${c.text}`;
+                ti.innerHTML = `<i class="fa-solid ${c.icon}"></i>`;
+                
+                const tTitle = document.getElementById('toastTitle');
+                const tMsg = document.getElementById('toastMessage');
+                if (tTitle) tTitle.textContent = title;
+                if (tMsg) tMsg.textContent = msg;
+                
+                t.classList.remove('translate-y-32', 'opacity-0');
+                setTimeout(() => t.classList.add('translate-y-32', 'opacity-0'), 3500);
+            },
+
+            downloadDaily: function() {
+                const d = document.getElementById('reportDateInput')?.value;
+                if (!d) return;
+                const data = this.HISTORY.filter(x => getLocalDate(new Date(x.date)) === d);
+                this.generatePDF(`Reporte Diario ${d}`, data);
+            },
+
+            downloadMonthly: function() {
+                const m = document.getElementById('reportMonthInput')?.value;
+                if (!m) return;
+                const data = this.HISTORY.filter(x => getLocalDate(new Date(x.date)).startsWith(m));
+                this.generatePDF(`Reporte Mensual ${m}`, data);
+            },
+
+            downloadAudit: function() {
+                if(!this.AUDIT.length) return this.toast('Vacío', 'Sin datos', 'neutral');
+                const { jsPDF } = window.jspdf; 
+                const doc = new jsPDF();
+                doc.setFontSize(22); doc.setTextColor(79, 70, 229);
+                doc.text("System-control Auditoría", 14, 20);
+                const body = this.AUDIT.map(a => [new Date(a.date).toLocaleString(), a.action, a.details.before, a.details.after]);
+                doc.autoTable({ 
+                    head: [['Fecha', 'Acción', 'Antes', 'Después']], 
+                    body, startY: 30, theme: 'grid', headStyles: { fillColor: [79, 70, 229] }, styles: { fontSize: 8 } 
+                });
+                doc.save(`Auditoria_${new Date().toISOString().slice(0,10)}.pdf`);
+            },
+
+            generatePDF: function(title, data) {
+                if(!data.length) return this.toast('Vacío', 'No hay datos', 'error');
+                const groups = {};
+                data.forEach(x => {
+                    const k = x.ref + '-' + x.category;
+                    const s = x.reason === 'CAMBIO' ? ' (C)' : (x.reason === 'ACTUALIZACIÓN PRECIO' ? ' (P)' : '');
+                    if(!groups[k]) groups[k] = { cat: x.category, ref: x.ref + s, qty: 0 };
+                    groups[k].qty += x.qty;
+                });
+                const rows = Object.values(groups).map(g => [g.cat, g.ref, g.qty]);
+                const { jsPDF } = window.jspdf; 
+                const doc = new jsPDF();
+                doc.setFontSize(22); doc.setTextColor(16, 185, 129);
+                doc.text("System-control", 14, 20);
+                doc.setFontSize(14); doc.setTextColor(100);
+                doc.text(title, 14, 30);
+                doc.autoTable({ 
+                    head: [['Categoría', 'Referencia', 'Total Unidades']], 
+                    body: rows, startY: 40, headStyles: { fillColor: [16, 185, 129] } 
+                });
+                doc.save(`${title}.pdf`);
+            }
+        };
+
+        async function processFiles(e) {
+            const files = e.target.files; 
+            if(!files || !files.length) return;
+            document.getElementById('loadingOverlay')?.classList.remove('hidden');
+            for(let f of files) {
+                try {
+                    const ab = await f.arrayBuffer(); 
+                    const wb = XLSX.read(ab, {type:'array'});
+                    wb.SheetNames.forEach(s => {
+                        const json = XLSX.utils.sheet_to_json(wb.Sheets[s], {header:1});
+                        json.forEach(row => {
+                            for(let i=0; i<row.length-1; i++){
+                                const cur = String(row[i]||'').trim().toUpperCase(); const nxt = parseInt(row[i+1]);
+                                if(cur.length > 1 && !isNaN(nxt) && nxt > 0){
+                                    const entryDate = new Date();
+                                    app.HISTORY.unshift({ 
+                                        id: 'ID_'+entryDate.getTime()+Math.random(), 
+                                        ref: cur, category:'GENERAL', qty: nxt, date: entryDate.toISOString(), reason:'EXCEL' 
+                                    });
+                                    i++;
+                                }
+                            }
+                        });
+                    });
+                } catch(err) { console.error(err); }
+            }
+            app.saveData(); app.renderTable(); app.updateStats();
+            document.getElementById('loadingOverlay')?.classList.add('hidden');
+            app.toast('Carga Completa', 'Excel procesado', 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>

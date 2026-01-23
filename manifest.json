@@ -1,0 +1,18 @@
+{
+"name": "System Control Pro",
+"short_name": "SystemControl",
+"start_url": ".",
+"display": "standalone",
+"background_color": "#312e81",
+"theme_color": "#4f46e5",
+"orientation": "portrait-primary",
+"description": "Sistema de gestión de inventario y control de ingresos.",
+"icons": [
+{
+"src": "https://www.google.com/search?q=https://cdn-icons-png.flaticon.com/512/1162/1162456.png",
+"sizes": "512x512",
+"type": "image/png",
+"purpose": "any maskable"
+}
+]
+}
