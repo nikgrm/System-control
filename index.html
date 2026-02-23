@@ -5,21 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>System-control | Inventario</title>
     
-    <!-- PWA -->
+    <!-- PWA: Manifiesto y Tema -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="System-control">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1162/1162456.png">
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/1162/1162456.png">
+    
+    <!-- Iconos PWA (Asegúrate de subir los archivos icon-192.png y icon-512.png) -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" href="icon-192.png">
 
-    <!-- CSS & Libs -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Librerías Externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -59,7 +65,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-extrabold text-white tracking-tight">System-control</h1>
-                        <p class="text-[10px] text-brand-100 font-bold uppercase tracking-widest hidden sm:block">Gestión de Inventario V5.3</p>
+                        <p class="text-[10px] text-brand-100 font-bold uppercase tracking-widest hidden sm:block">Gestión de Inventario V5.4</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -86,7 +92,6 @@
 
     <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
             <!-- Columna Formulario -->
             <div class="lg:col-span-4">
                 <div class="glass-card rounded-3xl shadow-2xl border border-slate-200 p-8 sticky top-24">
@@ -118,14 +123,14 @@
                                 class="block w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 outline-none placeholder-slate-400 uppercase font-bold text-lg transition-all" 
                                 placeholder="EJ. 14P80, RC295..." autocomplete="off">
                             <p class="text-[10px] text-warning-600 mt-2 pl-1 font-bold italic hidden" id="autoDetectLabel">
-                                <i class="fa-solid fa-wand-magic-sparkles animate-pulse"></i> ¡Referencia reconocida!
+                                <i class="fa-solid fa-wand-magic-sparkles animate-pulse"></i> ¡Categoría Detectada!
                             </p>
                         </div>
 
                         <div>
                             <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Categoría</label>
                             <div class="flex items-center bg-slate-50 border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-brand-500 transition-all shadow-sm">
-                                <select id="categoryInput" class="block w-full px-4 py-3.5 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 cursor-pointer"></select>
+                                <select id="categoryInput" onchange="app.checkPlateriaCategory()" class="block w-full px-4 py-3.5 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 cursor-pointer"></select>
                                 
                                 <button type="button" onclick="app.openModal('addCategoryModal')" class="px-3 h-full text-slate-400 hover:text-brand-600 hover:bg-brand-100 transition-colors border-l border-slate-200">
                                     <i class="fa-solid fa-plus"></i>
@@ -133,6 +138,24 @@
                                 <button type="button" onclick="app.openManageCategories()" class="px-3 h-full text-slate-400 hover:text-danger-500 hover:bg-danger-50 transition-colors border-l border-slate-200">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- PANEL DINÁMICO: OPCIONES DE PLATERÍA -->
+                        <div id="plateriaOptions" class="hidden bg-slate-100 border-2 border-slate-200 rounded-2xl p-4 transition-all">
+                            <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3">Detalle de Platería</label>
+                            <div class="flex gap-6 mb-3">
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="radio" name="plateriaType" value="JOYA" class="w-4 h-4 text-brand-600 focus:ring-brand-500 border-slate-300" checked onchange="app.togglePlateriaWeight()">
+                                    <span class="text-xs font-black text-slate-600 group-hover:text-brand-600 transition-colors">JOYA</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="radio" name="plateriaType" value="PESO" class="w-4 h-4 text-brand-600 focus:ring-brand-500 border-slate-300" onchange="app.togglePlateriaWeight()">
+                                    <span class="text-xs font-black text-slate-600 group-hover:text-brand-600 transition-colors">PESO</span>
+                                </label>
+                            </div>
+                            <div id="plateriaWeightContainer" class="hidden">
+                                <input type="number" id="plateriaWeight" step="0.01" min="0.01" class="block w-full px-4 py-3 bg-white border border-slate-300 rounded-xl focus:border-brand-500 outline-none font-bold text-sm shadow-inner" placeholder="Gramos (Ej. 12.5)">
                             </div>
                         </div>
 
@@ -151,7 +174,6 @@
                         </div>
                     </form>
 
-                    <!-- Resumen -->
                     <div class="mt-8">
                         <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center" id="summaryTitle">Resumen de Hoy</h4>
                         <div class="grid grid-cols-2 gap-4">
@@ -168,7 +190,7 @@
                 </div>
             </div>
 
-            <!-- Tabla de Historial -->
+            <!-- Columna Tabla -->
             <div class="lg:col-span-8 space-y-6">
                 <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
                     <div class="flex items-center gap-3">
@@ -288,7 +310,7 @@
     <div id="authModal" class="fixed inset-0 z-[60] hidden bg-brand-900/80 backdrop-blur-xl flex items-center justify-center p-4">
         <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xs p-10 text-center border-t-8 border-brand-600">
             <h3 class="text-xl font-black text-slate-800 mb-6">Autorización</h3>
-            <input type="password" id="authInput" class="block w-full px-5 py-5 bg-slate-50 border-2 border-slate-200 rounded-3xl text-center text-3xl font-black mb-8 outline-none tracking-widest focus:border-brand-600" placeholder="••••••">
+            <input type="password" id="authInput" class="block w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-center text-3xl font-black mb-8 outline-none tracking-widest focus:border-brand-600" placeholder="••••••">
             <button onclick="app.confirmAuth()" class="w-full bg-brand-600 text-white font-black py-4 rounded-2xl shadow-lg mb-4 hover:bg-brand-700 transition-all">CONFIRMAR</button>
             <button onclick="app.cancelAuth()" class="text-slate-400 font-bold text-[10px] uppercase hover:text-slate-600 tracking-widest">Cerrar</button>
         </div>
@@ -310,6 +332,7 @@
     </div>
 
     <script>
+        // PWA Installer Logic
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW OK')).catch(err => console.log('SW Fail'));
@@ -373,6 +396,7 @@
                 this.loadData();
                 this.setDefaults();
                 this.renderCategories();
+                this.checkPlateriaCategory(); // Verificar estado inicial
                 this.renderTable();
                 this.updateStats();
             },
@@ -419,6 +443,7 @@
                 const editInput = document.getElementById('editCategory');
                 if (input) input.innerHTML = html;
                 if (editInput) editInput.innerHTML = html;
+                this.checkPlateriaCategory(); // Sincronizar tras renderizar
             },
 
             handleDateChange: function() {
@@ -527,25 +552,50 @@
                 const qtyInput = document.getElementById('quantity');
                 const isEx = document.getElementById('isExchange'); 
                 const isPr = document.getElementById('isPriceUpdate');
-                const ref = refInput?.value.trim().toUpperCase();
+                
+                const baseRef = refInput?.value.trim().toUpperCase();
+                let ref = baseRef;
                 const qty = parseInt(qtyInput?.value);
                 const category = catInput?.value;
-                if (!ref || isNaN(qty) || qty <= 0) return this.toast('Incompleto', 'Revise los campos', 'error');
-                this.REF_MAP[ref] = category;
+
+                if (!baseRef || isNaN(qty) || qty <= 0) return this.toast('Incompleto', 'Revise los campos', 'error');
+
+                // Lógica de validación para Platería
+                if (category === 'PLATERIA') {
+                    const pType = document.querySelector('input[name="plateriaType"]:checked')?.value;
+                    if (pType === 'PESO') {
+                        const weight = parseFloat(document.getElementById('plateriaWeight')?.value);
+                        if (isNaN(weight) || weight <= 0) return this.toast('Error de Peso', 'Ingrese un valor en gramos válido', 'error');
+                        ref += ` [PESO: ${weight}g]`;
+                    } else {
+                        ref += ` [JOYA]`;
+                    }
+                }
+
+                this.REF_MAP[baseRef] = category;
                 this.saveRefMap();
+
                 let reason = 'INGRESO';
                 if (isEx?.checked) reason = 'CAMBIO';
                 else if (isPr?.checked) reason = 'ACTUALIZACIÓN PRECIO';
+                
                 const now = new Date();
                 this.HISTORY.unshift({ id: 'ID_' + now.getTime(), ref, category, qty, date: now.toISOString(), reason });
                 this.saveData(); 
+                
                 if (document.getElementById('viewDateInput')?.value === getLocalDate(now)) {
                     this.renderTable(); this.updateStats();
                 }
+
+                // Limpiar campos
                 if (refInput) { refInput.value = ''; refInput.focus(); }
                 if (qtyInput) qtyInput.value = '';
                 if (isEx) isEx.checked = false;
                 if (isPr) isPr.checked = false;
+                const pWeightInput = document.getElementById('plateriaWeight');
+                if (pWeightInput) pWeightInput.value = '';
+                
+                this.checkPlateriaCategory(); // Re-evaluar visibilidad
                 this.toast('Registrado', 'Operación exitosa', 'success');
             },
 
@@ -606,63 +656,91 @@
                 }
             },
 
-            // --- DETECCIÓN DE CÓDIGOS CORREGIDA ---
+            // Nuevas funciones para interfaz de Platería
+            checkPlateriaCategory: function() {
+                const cat = document.getElementById('categoryInput')?.value;
+                const opts = document.getElementById('plateriaOptions');
+                if (opts) {
+                    if (cat === 'PLATERIA') {
+                        opts.classList.remove('hidden');
+                    } else {
+                        opts.classList.add('hidden');
+                    }
+                }
+            },
+
+            togglePlateriaWeight: function() {
+                const pType = document.querySelector('input[name="plateriaType"]:checked')?.value;
+                const wCont = document.getElementById('plateriaWeightContainer');
+                if (wCont) {
+                    if (pType === 'PESO') {
+                        wCont.classList.remove('hidden');
+                        setTimeout(() => document.getElementById('plateriaWeight')?.focus(), 50);
+                    } else {
+                        wCont.classList.add('hidden');
+                    }
+                }
+            },
+
             runDetection: function() {
                 const ref = document.getElementById('reference')?.value.toUpperCase();
                 const sel = document.getElementById('categoryInput');
                 if (!ref || !sel) return;
                 let det = this.REF_MAP[ref] || null;
                 if (!det) {
-                    // REGLAS ESPECÍFICAS
-                    if (/^(1|2|3|4|5|6|7|9|13|14)O/.test(ref)) det = 'ORO';
+                    // LÓGICA DE DETECCIÓN MEJORADA CON REGEX
+                    // BATERIAS: Numeros de 3 digitos o nombres
+                    if (/^\d{3}$/.test(ref) || ['MURATA', 'RENATA', 'ENERGIZER'].some(w => ref.includes(w))) det = 'BATERIAS';
                     
-                    // PULSOS (Orden: Específicos antes que Generales)
-                    else if (ref.startsWith('PMD')) det = 'PULSO METALICO DMARIO';
-                    else if (ref.startsWith('PCD')) det = 'PULSO CUERO DMARIO';
-                    else if (ref.startsWith('PPD')) det = 'PULSO PLASTICO DMARIO';
-                    else if (ref.startsWith('PL')) det = 'PULSO PIEL'; 
-                    else if (ref.startsWith('PC')) det = 'PULSO CUERO';
-                    else if (ref.startsWith('PM')) det = 'PULSO METALICO'; 
-                    else if (ref.startsWith('PP')) det = 'PULSO PLASTICO';
+                    // PULSOS
+                    else if (/^P[A-Z]+\d+/.test(ref) || ref.startsWith('PL') || ref.startsWith('PC') || ref.startsWith('PM') || ref.startsWith('PP')) det = 'PULSO PLASTICO'; // Fallback a plastico si no es especifico
+                    if (ref.startsWith('PM')) det = 'PULSO METALICO';
+                    if (ref.startsWith('PC')) det = 'PULSO CUERO';
+                    if (ref.startsWith('PL')) det = 'PULSO PIEL';
+                    if (ref.startsWith('PMD')) det = 'PULSO METALICO DMARIO';
+                    if (ref.startsWith('PCD')) det = 'PULSO CUERO DMARIO';
+                    if (ref.startsWith('PPD')) det = 'PULSO PLASTICO DMARIO';
 
-                    // RELOJES Y ACCESORIOS
-                    else if (ref.startsWith('CR')) det = 'CAJA RELOJ';
-                    else if (ref.startsWith('CJ')) det = 'ESTUCHE JOYERO';
-                    else if (ref.startsWith('RK')) det = 'RELOJ KAIROS';
-                    else if (ref.startsWith('RF')) det = 'RELOJ FOSSIL';
-                    else if (ref.startsWith('RCAT')) det = 'CAT'; 
-                    else if (ref.startsWith('RTG')) det = 'TOMMY HILFIGER';
-                    else if (ref.startsWith('RSW')) det = 'SWATCH'; 
-                    else if (ref.startsWith('RNT')) det = 'NAUTICA';
-                    else if (ref.startsWith('RT')) det = 'TISSOT'; 
-                    else if (ref.startsWith('RBV')) det = 'BULOVA';
-                    else if (ref.startsWith('RGF')) det = 'G-FORCE'; 
-                    else if (ref.startsWith('RY')) det = 'YESS';
-                    else if (ref.startsWith('RST')) det = 'STRIKE'; 
-                    else if (ref.startsWith('RN')) det = 'NAVIFORCE';
-                    else if (ref.startsWith('RR')) det = 'REPLICA'; 
-                    else if (ref.startsWith('RG')) det = 'GUESS';
-                    else if (ref.startsWith('RO')) det = 'ORIENT'; 
+                    // JOYERIA: Numero + Letra + Numero
+                    else if (/^\d+P\d+/.test(ref)) det = 'PLATERIA';
+                    else if (/^\d+M\d+/.test(ref)) det = 'MALLORCA';
+                    else if (/^\d+PR\d+/.test(ref)) det = 'PRECOLOMBINO';
+                    else if (/^\d+F\d+/.test(ref)) det = 'ACERO';
+                    else if (/^\d+C\d+/.test(ref)) det = 'COVERGOLD';
+                    else if (/^\d+L\d+/.test(ref)) det = 'LAMINADO';
+                    else if (/^\d+E\d+/.test(ref)) det = 'PLATA ESMERALDA';
+                    else if (/^\d+O\d+/.test(ref)) det = 'ORO';
+
+                    // RELOJES: Prefijos especificos
+                    else if (ref.startsWith('RC') && !ref.startsWith('RCAT')) det = 'CASIO';
+                    else if (ref.startsWith('RQ')) det = 'Q&Q';
+                    else if (ref.startsWith('RR')) det = 'REPLICA';
                     else if (ref.startsWith('RD')) det = 'DMARIO';
-                    else if (ref.startsWith('RQ')) det = 'Q&Q'; 
-                    else if (ref.startsWith('RC')) det = 'CASIO';
+                    else if (ref.startsWith('RO')) det = 'ORIENT';
+                    else if (ref.startsWith('RG') && !ref.startsWith('RGF')) det = 'GUESS';
+                    else if (ref.startsWith('RCAT')) det = 'CAT';
+                    else if (ref.startsWith('RTG')) det = 'TOMMY HILFIGER';
+                    else if (ref.startsWith('RSW')) det = 'SWATCH';
+                    else if (ref.startsWith('RNT')) det = 'NAUTICA';
+                    else if (ref.startsWith('RT')) det = 'TISSOT';
+                    else if (ref.startsWith('RBV')) det = 'BULOVA';
+                    else if (ref.startsWith('RGF')) det = 'G-FORCE';
+                    else if (ref.startsWith('RY')) det = 'YESS';
+                    else if (ref.startsWith('RST')) det = 'STRIKE';
+                    else if (ref.startsWith('RN')) det = 'NAVIFORCE';
+                    else if (ref.startsWith('RF')) det = 'RELOJ FOSSIL';
+                    else if (ref.startsWith('RK')) det = 'RELOJ KAIROS';
+                    
+                    // ACCESORIOS
                     else if (ref.startsWith('RM')) det = 'RELOJ MESA';
                     else if (ref.startsWith('RP')) det = 'RELOJ PARED';
-
-                    // JOYERÍA (Regex para códigos numéricos + Letra)
-                    else if (/^\d+PR/.test(ref)) det = 'PRECOLOMBINO';
-                    else if (/^(1|2|3|4|5|6|7|8|9|10|13|14)P/.test(ref)) det = 'PLATERIA';
-                    else if (/^(1|2|3|4|5|6|7|8|9|10|13|14)M/.test(ref)) det = 'MALLORCA';
-                    else if (/^\d+F/.test(ref)) det = 'ACERO';
-                    else if (/^\d+C/.test(ref)) det = 'COVERGOLD';
-                    else if (/^\d+L/.test(ref)) det = 'LAMINADO';
-                    else if (/^\d+E/.test(ref)) det = 'PLATA ESMERALDA';
-
-                    // BATERIAS
-                    else if (['MURATA', 'RENATA', 'ENERGIZER'].some(w => ref.includes(w)) || /^\d{3}$/.test(ref)) det = 'BATERIAS';
+                    else if (ref.startsWith('CR')) det = 'CAJA RELOJ';
+                    else if (ref.startsWith('CJ')) det = 'ESTUCHE JOYERO';
                 }
+
                 if (det && sel.value !== det && this.CATEGORIES.find(c => c.name === det)) {
                     sel.value = det;
+                    this.checkPlateriaCategory(); // Activar panel si es PLATERIA
                     const label = document.getElementById('autoDetectLabel');
                     if (label) { label.classList.remove('hidden'); setTimeout(() => label.classList.add('hidden'), 2000); }
                 }
